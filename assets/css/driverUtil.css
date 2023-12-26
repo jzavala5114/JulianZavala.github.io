@@ -1,0 +1,11 @@
+/* Use a class selector to target all images */
+.image {
+    /* Add a transition effect for the scale */
+    transition: transform 0.3s;
+  }
+  
+  /* Use a pseudo-class selector to target the images on hover */
+  .image:hover {
+    /* Scale the images by 1.2 times */
+    transform: scale (1.2);
+  }
