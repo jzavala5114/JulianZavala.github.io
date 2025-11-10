@@ -1,124 +1,383 @@
-<!DOCTYPE HTML>
-<!--
-	Massively by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
--->
-<html>
-	<head>
-		<title>Julian Zavala Ramirez's Portfolio</title>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-		<link rel="stylesheet" href="assets/css/main.css" />
-		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
-	</head>
-	<body class="is-preload">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mileage Charts</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
 
-		<!-- Wrapper -->
-			<div id="wrapper" class="fade-in">
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: #050509;
+      color: #f5f5f7;
+    }
 
-				<!-- Intro -->
-					<div id="intro">
-						<h1>My Portfolio</h1>
-						<p>This is a showcase of my projects and coding experience</p>
-						<ul class="actions">
-							<li><a href="#header" class="button icon solid solo fa-arrow-down scrolly">Continue</a></li>
-						</ul>
-					</div>
+    .page {
+      width: 100%;
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px 32px;
+    }
 
-				<!-- Header -->
-					<header id="header">
-						<a href="index.html" class="logo">Julian Zavala's Portfolio</a>
-					</header>
+    h1 {
+      margin-bottom: 8px;
+    }
 
-				<!-- Nav -->
-					<nav id="nav">
-						<ul class="links">
-							<li class="active"><a href="index.html">Overview</a></li>
-						</ul>
-						<ul class="icons">
-							<li><a href="https://www.linkedin.com/in/julian-zavala-276a00257" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
-							<li><a href="https://github.com/jzavala5114" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
-						</ul>
-					</nav>
+    p {
+      margin-top: 0;
+      color: #a0a0b0;
+      font-size: 0.9rem;
+    }
 
-				<!-- Main -->
-					<div id="main">
+    .shell {
+      margin-top: 20px;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at top left, #26264b, #101018 55%),
+        radial-gradient(circle at bottom right, #1d1d2e, #050509 55%);
+      padding: 18px 18px 26px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+    }
 
-						<!-- Featured Post -->
-							<article class="post featured">
-								<header class="major">
-									<h2><a href="#"></a>MY NAME IS JULIAN ZAVALA RAMIREZ</h2>
-									<p>I'm a developer that is constantly adding more sets of skills to my repertoire and these are some of my projects.</p>
-								</header>
+    .page-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
 
-							</article>
+    .page-controls span#pageTitle {
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      color: #d5d5ff;
+    }
 
-						<!-- Posts -->
-							<section class="posts">
-								<article>
-									<header>
-										<h2><a href="DriverApp.html">Delivery Driver<br />
-										Utility App</a></h2>
-									</header>
-									<a href="DriverApp.html" class="image fit"><img src="images/Drive6-thumbnail.png" alt="" /></a>
-									<p>A tool to help gig workers track tipping patterns from repeat customers. </p>
-									<ul class="actions special">
-										<li><a href="DriverApp.html" class="button">Explore</a></li>
-									</ul>
-								</article>
-								<article>
-									<header>
-										<h2><a href="Game.html">Tower Defence Game Project<br />
-										</a></h2>
-									</header>
-									<a href="Game.html" class="image fit"><img src="images/GameThumbnail.png" alt="" /></a>
-									<p>My first deep dive into the Unity developement cycle.</p>
-									<ul class="actions special">
-										<li><a href="Game.html" class="button">Explore</a></li>
-									</ul>
-								</article>
-							</section>
+    button.nav-btn {
+      border: 1px solid #353553;
+      background: #171726;
+      color: #f5f5ff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition:
+        background 0.15s ease,
+        transform 0.05s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+    }
 
-						<!-- Footer -->
-							<footer>
+    button.nav-btn:hover {
+      background: #26263a;
+      border-color: #4e4e93;
+      box-shadow: 0 0 0 1px rgba(100, 100, 200, 0.35);
+    }
 
-							</footer>
+    button.nav-btn:active {
+      transform: scale(0.97);
+    }
 
-					</div>
+    button.nav-btn span.arrow {
+      font-size: 1rem;
+      line-height: 1;
+    }
 
-				<!-- Footer -->
-					<footer id="footer">
-						<section class="split contact">
-							<section>
-								<h3>Email</h3>
-								<p><a href="mailto:jzavala8942@gmail.com?subject=Hello from Bing">jzavala8942@gmail.com</a></p>
-							</section>
-							<section>
-								<h3>Social</h3>
-								<ul class="icons alt">
-									<li><a href="https://github.com/jzavala5114" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
-									<li><a href="https://www.linkedin.com/in/julian-zavala-276a00257" class="icon brands alt fa-linkedin"><span class="label">Linkedin</span></a></li>
-								</ul>
-							</section>
-						</section>
-					</footer>
+    #unitHint {
+      font-size: 0.8rem;
+      color: #9b9bc5;
+      text-align: center;
+      margin-bottom: 8px;
+    }
 
-				<!-- Copyright -->
-					<div id="copyright">
-						<ul><li>&copy; Untitled</li><li>Design: <a href="https://html5up.net">HTML5 UP</a></li></ul>
-					</div>
+    #chartWrapper {
+      background: rgba(8, 8, 18, 0.92);
+      border-radius: 12px;
+      border: 1px solid rgba(70, 70, 120, 0.45);
+      padding: 16px;
+      min-height: 380px;
+    }
 
-			</div>
+    canvas {
+      width: 100% !important;
+      max-height: 520px;
+    }
 
-		<!-- Scripts -->
-			<script src="assets/js/jquery.min.js"></script>
-			<script src="assets/js/jquery.scrollex.min.js"></script>
-			<script src="assets/js/jquery.scrolly.min.js"></script>
-			<script src="assets/js/browser.min.js"></script>
-			<script src="assets/js/breakpoints.min.js"></script>
-			<script src="assets/js/util.js"></script>
-			<script src="assets/js/main.js"></script>
+    @media (max-width: 600px) {
+      .page {
+        margin: 12px auto 24px;
+        padding: 0 10px 20px;
+      }
 
-	</body>
+      .shell {
+        padding: 14px 10px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>Mileage (Wisconsin)</h1>
+    <p>Source: <code>public/data.json</code> · Charts are monthly summaries by year.</p>
+
+    <div class="shell">
+      <!-- Chart selector -->
+      <div class="page-controls">
+        <button id="prevPage" class="nav-btn" aria-label="Previous chart">
+          <span class="arrow">◀</span>
+        </button>
+        <span id="pageTitle"></span>
+        <button id="nextPage" class="nav-btn" aria-label="Next chart">
+          <span class="arrow">▶</span>
+        </button>
+      </div>
+
+      <div id="unitHint"></div>
+
+      <div id="chartWrapper">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function main() {
+      const resp = await fetch('public/data.json');
+      const json = await resp.json();
+
+      const labels = json.labels;
+      const miles = json.datasets.miles;
+      const pricePerGallon = json.datasets.pricePerGallon;
+      const cost = json.datasets.cost;
+      const mpg = json.datasets.mpg;
+
+      // monthly[year][monthIndex] = { miles, cost, priceSum, mpgSum, count }
+      const monthly = {};
+
+      for (let i = 0; i < labels.length; i++) {
+        const date = new Date(labels[i]);
+        const year = date.getFullYear();
+        const month = date.getMonth(); // 0–11
+
+        if (!monthly[year]) {
+          monthly[year] = Array.from({ length: 12 }, () => ({
+            miles: 0,
+            cost: 0,
+            priceSum: 0,
+            mpgSum: 0,
+            count: 0
+          }));
+        }
+
+        const b = monthly[year][month];
+        b.miles += miles[i];
+        b.cost += cost[i];
+        b.priceSum += pricePerGallon[i];
+        b.mpgSum += mpg[i];
+        b.count++;
+      }
+
+      const years = Object.keys(monthly).map(Number).sort((a, b) => a - b);
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      const pages = [
+        { id: 'mpg',   title: 'Average MPG per Month' },
+        { id: 'price', title: 'Average Gas Price per Month' },
+        { id: 'miles', title: 'Total Miles Driven per Month' },
+        { id: 'cost',  title: 'Total Fuel Cost per Month' }
+      ];
+
+      let currentPageIndex = 0;
+
+      const pageTitleEl = document.getElementById('pageTitle');
+      const unitHintEl = document.getElementById('unitHint');
+
+      const prevPageBtn = document.getElementById('prevPage');
+      const nextPageBtn = document.getElementById('nextPage');
+
+      const ctx = document.getElementById('chartCanvas').getContext('2d');
+      let chart = null;
+
+      function fmt(num, decimals = 2) {
+        return num.toFixed(decimals);
+      }
+
+      function buildDatasetsForPage(pageId) {
+        let yTitle = '';
+        let tooltipFormatter;
+
+        if (pageId === 'mpg') {
+          yTitle = 'MPG';
+          tooltipFormatter = (value) => fmt(value, 2) + ' MPG';
+        } else if (pageId === 'price') {
+          yTitle = 'USD per Gallon';
+          tooltipFormatter = (value) => '$' + fmt(value, 3) + '/gal';
+        } else if (pageId === 'miles') {
+          yTitle = 'Miles';
+          tooltipFormatter = (value) => fmt(value, 1) + ' miles';
+        } else if (pageId === 'cost') {
+          yTitle = 'USD per Month';
+          tooltipFormatter = (value) => '$' + fmt(value, 2);
+        }
+
+        const datasets = [];
+
+        years.forEach(year => {
+          const data = [];
+
+          for (let m = 0; m < 12; m++) {
+            const b = monthly[year] && monthly[year][m];
+            if (!b || b.count === 0) {
+              data.push(null);
+              continue;
+            }
+
+            if (pageId === 'mpg') {
+              data.push(b.mpgSum / b.count);
+            } else if (pageId === 'price') {
+              data.push(b.priceSum / b.count);
+            } else if (pageId === 'miles') {
+              data.push(b.miles);
+            } else if (pageId === 'cost') {
+              data.push(b.cost);
+            }
+          }
+
+          datasets.push({
+            label: String(year),
+            data,
+            borderRadius: 4
+            // Colors left to Chart.js defaults
+          });
+        });
+
+        return { labels: monthNames, datasets, yTitle, tooltipFormatter };
+      }
+
+      function updateUnitHint(pageId) {
+        switch (pageId) {
+          case 'mpg':
+            unitHintEl.textContent = 'MPG = miles per gallon, averaged by calendar month for each year.';
+            break;
+          case 'price':
+            unitHintEl.textContent = 'Average pump price per gallon (USD) for each month and year.';
+            break;
+          case 'miles':
+            unitHintEl.textContent = 'Total miles driven in each month, per year.';
+            break;
+          case 'cost':
+            unitHintEl.textContent = 'Total dollars spent on gas each month, per year.';
+            break;
+          default:
+            unitHintEl.textContent = '';
+        }
+      }
+
+      function renderCurrentPage() {
+        const page = pages[currentPageIndex];
+        pageTitleEl.textContent = page.title;
+        updateUnitHint(page.id);
+
+        const cfg = buildDatasetsForPage(page.id);
+
+        if (chart) {
+          chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: cfg.labels,
+            datasets: cfg.datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            scales: {
+              x: {
+                stacked: false,
+                ticks: {
+                  maxRotation: 0,
+                  autoSkip: true
+                },
+                grid: {
+                  display: false
+                }
+              },
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: cfg.yTitle
+                },
+                grid: {
+                  color: 'rgba(120, 120, 160, 0.25)'
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: true,
+                labels: {
+                  boxWidth: 16,
+                  boxHeight: 8
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.dataset.label || '';
+                    const value = context.parsed.y;
+                    if (value == null) return label;
+                    if (cfg.tooltipFormatter) {
+                      return label + ': ' + cfg.tooltipFormatter(value);
+                    }
+                    return label + ': ' + value;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      prevPageBtn.addEventListener('click', () => {
+        currentPageIndex = (currentPageIndex - 1 + pages.length) % pages.length;
+        renderCurrentPage();
+      });
+
+      nextPageBtn.addEventListener('click', () => {
+        currentPageIndex = (currentPageIndex + 1) % pages.length;
+        renderCurrentPage();
+      });
+
+      // Initial render
+      renderCurrentPage();
+    }
+
+    main().catch(err => {
+      console.error('Error loading or rendering data.json', err);
+      const wrapper = document.getElementById('chartWrapper');
+      wrapper.innerHTML =
+        '<p style="padding:8px;color:#ffb3b3;">Error loading data. Open the console for details.</p>';
+    });
+  </script>
+</body>
 </html>
