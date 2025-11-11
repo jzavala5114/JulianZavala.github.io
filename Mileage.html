@@ -12,8 +12,11 @@
         <link rel="stylesheet" href="assets/css/main.css" />
         <noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
 
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
         <style>
-            .table-controls {
+            .chart-controls {
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -26,37 +29,29 @@
                 letter-spacing: 0.03em;
                 text-transform: uppercase;
                 font-size: 0.9rem;
+                text-align: center;
             }
-            .table-wrapper {
-                overflow-x: auto;
-                margin-top: 1.5rem;
+            .chart-wrapper {
+                margin-top: 2rem;
             }
-            table#dataTable {
+            .chart-card {
+                background: #1e1f23;
+                border-radius: 8px;
+                padding: 1.5rem;
+            }
+            .chart-card h3 {
+                margin: 0 0 0.75rem 0;
+                font-size: 1.1rem;
+                text-align: center;
+            }
+            .chart-container {
+                position: relative;
                 width: 100%;
-                min-width: 900px;
-                border-collapse: collapse;
+                height: 420px; /* controls chart height */
             }
-            #dataTable th,
-            #dataTable td {
-                padding: 0.6rem 0.8rem;
-                border: 1px solid rgba(255,255,255,0.08);
-                text-align: right;
-                font-size: 0.9rem;
-            }
-            #dataTable th:first-child,
-            #dataTable td:first-child {
-                text-align: left;
-                white-space: nowrap;
-                font-weight: 600;
-            }
-            #dataTable thead {
-                background: rgba(255,255,255,0.02);
-            }
-            #dataTable tbody tr:nth-child(odd) {
-                background: rgba(255,255,255,0.02);
-            }
-            #dataTable tbody tr:nth-child(even) {
-                background: rgba(255,255,255,0.04);
+            #metricChart {
+                width: 100%;
+                height: 100%;
             }
         </style>
     </head>
@@ -75,30 +70,32 @@
                         <p>
                             This project tracks my real-world driving data in Wisconsin, including miles per fill,
                             MPG, gas prices, and total fill cost. I wrote a Java script to convert my handwritten
-                            mileage log into a JSON dataset, then used JavaScript to generate monthly summaries
+                            mileage log into a JSON dataset, then used Chart.js to visualize monthly trends
                             directly in the browser.
                         </p>
                     </header>
 
                     <p>
-                        Use the arrows below to switch between different views of the same data:
-                        average MPG, average gas price, total miles driven, and total monthly fuel cost.
-                        Rows represent years, columns represent months (Jan–Dec).
+                        Use the arrows below to switch between views: average MPG, average gas price, total miles,
+                        and total monthly fuel cost. Months are along the x-axis (Jan–Dec), and each color
+                        represents a different year.
                     </p>
 
                     <!-- Controls -->
-                    <div class="table-controls">
+                    <div class="chart-controls">
                         <button id="prevMetric" class="button small">⟵ Previous</button>
                         <span id="metricLabel" class="metric-label">Average MPG per Month</span>
                         <button id="nextMetric" class="button small">Next ⟶</button>
                     </div>
 
-                    <!-- Scrollable table -->
-                    <div class="table-wrapper">
-                        <table id="dataTable">
-                            <thead></thead>
-                            <tbody></tbody>
-                        </table>
+                    <!-- Chart -->
+                    <div class="chart-wrapper">
+                        <div class="chart-card">
+                            <h3 id="chartTitle">Average MPG per Month</h3>
+                            <div class="chart-container">
+                                <canvas id="metricChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </article>
 
@@ -137,7 +134,7 @@
         <script src="assets/js/util.js"></script>
         <script src="assets/js/main.js"></script>
 
-        <!-- Mileage table script -->
+        <!-- Mileage bar-graph script -->
         <script>
             (async function () {
                 const resp = await fetch('data.json');
@@ -149,7 +146,7 @@
                 const YEARS = [2023, 2024, 2025];
                 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-                // Aggregate per year+month
+                // Aggregate raw fill data into monthly buckets per year
                 const monthly = {};
                 YEARS.forEach(y => {
                     monthly[y] = Array.from({ length: 12 }, () => ({
@@ -184,77 +181,106 @@
                     {
                         key: 'mpg',
                         title: 'Average MPG per Month',
+                        yAxis: 'MPG',
                         compute: cell => cell.mpgCount ? cell.mpgSum / cell.mpgCount : null,
                         decimals: 1
                     },
                     {
                         key: 'price',
                         title: 'Average Gas Price per Gallon (USD)',
+                        yAxis: 'USD',
                         compute: cell => cell.priceCount ? cell.priceSum / cell.priceCount : null,
                         decimals: 2
                     },
                     {
                         key: 'miles',
                         title: 'Total Miles Driven per Month',
+                        yAxis: 'Miles',
                         compute: cell => cell.miles || null,
                         decimals: 0
                     },
                     {
                         key: 'cost',
                         title: 'Total Fuel Cost per Month (USD)',
+                        yAxis: 'USD',
                         compute: cell => cell.cost || null,
                         decimals: 0
                     }
                 ];
 
                 let currentMetricIndex = 0;
-
-                const thead = document.querySelector('#dataTable thead');
-                const tbody = document.querySelector('#dataTable tbody');
                 const metricLabel = document.getElementById('metricLabel');
+                const chartTitle = document.getElementById('chartTitle');
+                const ctx = document.getElementById('metricChart').getContext('2d');
+                let chart = null;
 
-                function formatValue(val, decimals) {
-                    if (val == null) return '-';
-                    return val.toFixed(decimals);
-                }
-
-                function renderTable() {
-                    const metric = metrics[currentMetricIndex];
-                    metricLabel.textContent = metric.title;
-
-                    // Header
-                    let headHtml = '<tr><th>Year</th>';
-                    MONTH_NAMES.forEach(name => {
-                        headHtml += `<th>${name}</th>`;
-                    });
-                    headHtml += '</tr>';
-                    thead.innerHTML = headHtml;
-
-                    // Body
-                    let bodyHtml = '';
-                    YEARS.forEach(year => {
-                        bodyHtml += `<tr><td>${year}</td>`;
+                function buildChartData(metric) {
+                    const datasets = YEARS.map((year, idx) => {
+                        const data = [];
                         for (let m = 0; m < 12; m++) {
                             const cell = monthly[year][m];
                             const val = metric.compute(cell);
-                            bodyHtml += `<td>${formatValue(val, metric.decimals)}</td>`;
+                            data.push(val == null ? null : Number(val.toFixed(metric.decimals)));
                         }
-                        bodyHtml += '</tr>';
+                        return {
+                            label: String(year),
+                            data: data
+                            // No explicit colors: let Chart.js pick defaults
+                        };
                     });
-                    tbody.innerHTML = bodyHtml;
+                    return { labels: MONTH_NAMES, datasets };
+                }
+
+                function renderChart() {
+                    const metric = metrics[currentMetricIndex];
+                    metricLabel.textContent = metric.title;
+                    chartTitle.textContent = metric.title;
+
+                    const data = buildChartData(metric);
+
+                    if (chart) {
+                        chart.destroy();
+                    }
+
+                    chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            scales: {
+                                x: {
+                                    stacked: false
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: metric.yAxis
+                                    },
+                                    beginAtZero: true
+                                }
+                            },
+                            plugins: {
+                                legend: { display: true },
+                                tooltip: { enabled: true }
+                            }
+                        }
+                    });
                 }
 
                 document.getElementById('prevMetric').addEventListener('click', () => {
                     currentMetricIndex = (currentMetricIndex - 1 + metrics.length) % metrics.length;
-                    renderTable();
+                    renderChart();
                 });
 
                 document.getElementById('nextMetric').addEventListener('click', () => {
                     currentMetricIndex = (currentMetricIndex + 1) % metrics.length;
-                    renderTable();
+                    renderChart();
                 });
 
-                renderTable();
+                // Initial render
+                renderChart();
             })();
         </script>
 
