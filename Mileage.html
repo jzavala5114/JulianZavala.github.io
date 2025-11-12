@@ -134,155 +134,157 @@
         <script src="assets/js/util.js"></script>
         <script src="assets/js/main.js"></script>
 
-        <!-- Mileage bar-graph script -->
-        <script>
-            (async function () {
-                const resp = await fetch('data.json');
-                const json = await resp.json();
+<!-- Mileage bar-graph script -->
+<script>
+(async function () {
+    const resp = await fetch('data.json');
+    const json = await resp.json();
 
-                const labels = json.labels || [];
-                const ds = json.datasets || {};
+    const labels = json.labels || [];
+    const ds = json.datasets || {};
 
-                const YEARS = [2023, 2024, 2025];
-                const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const YEARS = [2023, 2024, 2025];
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-                // Aggregate raw fill data into monthly buckets per year
-                const monthly = {};
-                YEARS.forEach(y => {
-                    monthly[y] = Array.from({ length: 12 }, () => ({
-                        miles: 0,
-                        cost: 0,
-                        mpgSum: 0,
-                        mpgCount: 0,
-                        priceSum: 0,
-                        priceCount: 0
-                    }));
-                });
+    const monthly = {};
+    YEARS.forEach(y => {
+        monthly[y] = Array.from({ length: 12 }, () => ({
+            miles: 0,
+            cost: 0,
+            mpgSum: 0,
+            mpgCount: 0,
+            priceSum: 0,
+            priceCount: 0
+        }));
+    });
 
-                labels.forEach((label, i) => {
-                    const d = new Date(label);
-                    const y = d.getFullYear();
-                    const m = d.getMonth();
-                    if (!monthly[y] || m < 0 || m > 11) return;
+    labels.forEach((label, i) => {
+        const d = new Date(label);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        if (!monthly[y] || m < 0 || m > 11) return;
 
-                    const entry = monthly[y][m];
-                    const miles = Number(ds.miles?.[i] ?? 0);
-                    const mpg = Number(ds.mpg?.[i] ?? 0);
-                    const price = Number(ds.pricePerGallon?.[i] ?? 0);
-                    const cost = Number(ds.cost?.[i] ?? 0);
+        const entry = monthly[y][m];
+        const miles = Number(ds.miles?.[i] ?? 0);
+        const mpg = Number(ds.mpg?.[i] ?? 0);
+        const price = Number(ds.pricePerGallon?.[i] ?? 0);
+        const cost = Number(ds.cost?.[i] ?? 0);
 
-                    if (!Number.isNaN(miles)) entry.miles += miles;
-                    if (!Number.isNaN(cost)) entry.cost += cost;
-                    if (!Number.isNaN(mpg)) { entry.mpgSum += mpg; entry.mpgCount++; }
-                    if (!Number.isNaN(price)) { entry.priceSum += price; entry.priceCount++; }
-                });
+        if (!Number.isNaN(miles)) entry.miles += miles;
+        if (!Number.isNaN(cost)) entry.cost += cost;
+        if (!Number.isNaN(mpg)) { entry.mpgSum += mpg; entry.mpgCount++; }
+        if (!Number.isNaN(price)) { entry.priceSum += price; entry.priceCount++; }
+    });
 
-                const metrics = [
-                    {
-                        key: 'mpg',
-                        title: 'Average MPG per Month',
-                        yAxis: 'MPG',
-                        compute: cell => cell.mpgCount ? cell.mpgSum / cell.mpgCount : null,
-                        decimals: 1
+    const metrics = [
+        {
+            key: 'mpg',
+            title: 'Average MPG per Month',
+            yAxis: 'MPG',
+            compute: cell => cell.mpgCount ? cell.mpgSum / cell.mpgCount : null,
+            decimals: 1
+        },
+        {
+            key: 'price',
+            title: 'Average Gas Price per Gallon (USD)',
+            yAxis: 'USD',
+            compute: cell => cell.priceCount ? cell.priceSum / cell.priceCount : null,
+            decimals: 2
+        },
+        {
+            key: 'miles',
+            title: 'Total Miles Driven per Month',
+            yAxis: 'Miles',
+            compute: cell => cell.miles || null,
+            decimals: 0
+        },
+        {
+            key: 'cost',
+            title: 'Total Fuel Cost per Month (USD)',
+            yAxis: 'USD',
+            compute: cell => cell.cost || null,
+            decimals: 0
+        }
+    ];
+
+    let currentMetricIndex = 0;
+    const metricLabel = document.getElementById('metricLabel');
+    const chartTitle = document.getElementById('chartTitle');
+    const ctx = document.getElementById('metricChart').getContext('2d');
+    let chart = null;
+
+    function buildChartData(metric) {
+        const datasets = YEARS.map((year) => {
+            const data = [];
+            for (let m = 0; m < 12; m++) {
+                const cell = monthly[year][m];
+                const val = metric.compute(cell);
+                data.push(val == null ? null : Number(val.toFixed(metric.decimals)));
+            }
+            return { label: String(year), data: data };
+        });
+        return { labels: MONTH_NAMES, datasets };
+    }
+
+    function renderChart() {
+        const metric = metrics[currentMetricIndex];
+        metricLabel.textContent = metric.title;
+        chartTitle.textContent = metric.title;
+
+        const data = buildChartData(metric);
+
+        if (chart) chart.destroy();
+
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        ticks: { color: '#ffffff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
                     },
-                    {
-                        key: 'price',
-                        title: 'Average Gas Price per Gallon (USD)',
-                        yAxis: 'USD',
-                        compute: cell => cell.priceCount ? cell.priceSum / cell.priceCount : null,
-                        decimals: 2
-                    },
-                    {
-                        key: 'miles',
-                        title: 'Total Miles Driven per Month',
-                        yAxis: 'Miles',
-                        compute: cell => cell.miles || null,
-                        decimals: 0
-                    },
-                    {
-                        key: 'cost',
-                        title: 'Total Fuel Cost per Month (USD)',
-                        yAxis: 'USD',
-                        compute: cell => cell.cost || null,
-                        decimals: 0
+                    y: {
+                        title: { display: true, text: metric.yAxis, color: '#ffffff' },
+                        ticks: { color: '#ffffff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        beginAtZero: true
                     }
-                ];
-
-                let currentMetricIndex = 0;
-                const metricLabel = document.getElementById('metricLabel');
-                const chartTitle = document.getElementById('chartTitle');
-                const ctx = document.getElementById('metricChart').getContext('2d');
-                let chart = null;
-
-                function buildChartData(metric) {
-                    const datasets = YEARS.map((year, idx) => {
-                        const data = [];
-                        for (let m = 0; m < 12; m++) {
-                            const cell = monthly[year][m];
-                            const val = metric.compute(cell);
-                            data.push(val == null ? null : Number(val.toFixed(metric.decimals)));
-                        }
-                        return {
-                            label: String(year),
-                            data: data
-                            // No explicit colors: let Chart.js pick defaults
-                        };
-                    });
-                    return { labels: MONTH_NAMES, datasets };
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: '#ffffff' }
+                    },
+                    title: {
+                        display: true,
+                        text: metric.title,
+                        color: '#ffffff',
+                        font: { size: 16, weight: 'bold' }
+                    },
+                    tooltip: { enabled: true }
                 }
+            }
+        });
+    }
 
-                function renderChart() {
-                    const metric = metrics[currentMetricIndex];
-                    metricLabel.textContent = metric.title;
-                    chartTitle.textContent = metric.title;
+    document.getElementById('prevMetric').addEventListener('click', () => {
+        currentMetricIndex = (currentMetricIndex - 1 + metrics.length) % metrics.length;
+        renderChart();
+    });
+    document.getElementById('nextMetric').addEventListener('click', () => {
+        currentMetricIndex = (currentMetricIndex + 1) % metrics.length;
+        renderChart();
+    });
 
-                    const data = buildChartData(metric);
+    renderChart();
+})();
+</script>
 
-                    if (chart) {
-                        chart.destroy();
-                    }
-
-                    chart = new Chart(ctx, {
-                        type: 'bar',
-                        data: data,
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
-                            scales: {
-                                x: {
-                                    stacked: false
-                                },
-                                y: {
-                                    title: {
-                                        display: true,
-                                        text: metric.yAxis
-                                    },
-                                    beginAtZero: true
-                                }
-                            },
-                            plugins: {
-                                legend: { display: true },
-                                tooltip: { enabled: true }
-                            }
-                        }
-                    });
-                }
-
-                document.getElementById('prevMetric').addEventListener('click', () => {
-                    currentMetricIndex = (currentMetricIndex - 1 + metrics.length) % metrics.length;
-                    renderChart();
-                });
-
-                document.getElementById('nextMetric').addEventListener('click', () => {
-                    currentMetricIndex = (currentMetricIndex + 1) % metrics.length;
-                    renderChart();
-                });
-
-                // Initial render
-                renderChart();
-            })();
-        </script>
 
     </body>
 </html>
+
