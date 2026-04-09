@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Customer Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    #map { height: 80vh; width: 100%; border-radius: 12px; }
+  </style>
+</head>
+
+<body>
+  <h2>Customer Tip Map</h2>
+  <div id="map"></div>
+
+  <script>
+    function loadGoogleMaps() {
+      const script = document.createElement("script");
+      script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyDECF7ZPTKhkDOtwzWOWL4nEtqlXxsnLI4&v=weekly";
+      script.defer = true;
+      script.onload = initMap;
+      document.head.appendChild(script);
+    }
+
+    async function initMap() {
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 44.091, lng: -87.657 },
+        zoom: 12
+      });
+
+      const geocoder = new google.maps.Geocoder();
+
+      const customers = await fetch("data/Customers4.json").then(r => r.json());
+
+      for (const c of customers) {
+        if (!c.address) continue;
+
+        geocoder.geocode({ address: c.address }, (results, status) => {
+          if (status === "OK") {
+            const marker = new google.maps.Marker({
+              map,
+              position: results[0].geometry.location
+            });
+
+            const info = new google.maps.InfoWindow({
+              content: `<b>${c.name}</b><br>$${Number(c.average_tip).toFixed(2)}`
+            });
+
+            marker.addListener("click", () => {
+              info.open(map, marker);
+            });
+          } else {
+            console.log("Geocode failed:", c.address);
+          }
+        });
+      }
+    }
+
+    loadGoogleMaps();
+  </script>
+</body>
+</html>
