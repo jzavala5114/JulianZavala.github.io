@@ -58,9 +58,9 @@
       let customers = [];
 
       try {
-        const response = await fetch("data/Customers4.json");
+        const response = await fetch("data/Customers6.json");
         if (!response.ok) {
-          throw new Error("Failed to fetch Customers4.json: " + response.status);
+          throw new Error("Failed to fetch Customers6.json: " + response.status);
         }
 
         customers = await response.json();
