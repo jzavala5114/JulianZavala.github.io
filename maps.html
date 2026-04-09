@@ -39,10 +39,35 @@
 
     function loadGoogleMaps() {
       const script = document.createElement("script");
-      script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyDECF7ZPTKhkDOtwzWOWL4nEtqlXxsnLI4&v=weekly";
+      script.src = "https://maps.googleapis.com/maps/api/js?key=YOUR_REAL_API_KEY_HERE&v=weekly";
       script.defer = true;
       script.onload = initMap;
       document.head.appendChild(script);
+    }
+
+    function getCustomerArray(jsonData) {
+      // Case 1: file is already a plain array
+      if (Array.isArray(jsonData)) {
+        return jsonData;
+      }
+
+      // Case 2: wrapped object with common property names
+      if (jsonData && typeof jsonData === "object") {
+        if (Array.isArray(jsonData.customers)) return jsonData.customers;
+        if (Array.isArray(jsonData.data)) return jsonData.data;
+        if (Array.isArray(jsonData.customerList)) return jsonData.customerList;
+        if (Array.isArray(jsonData.list)) return jsonData.list;
+
+        // fallback: find the first array property in the object
+        for (const key in jsonData) {
+          if (Array.isArray(jsonData[key])) {
+            console.log("Using array found in property:", key);
+            return jsonData[key];
+          }
+        }
+      }
+
+      return [];
     }
 
     async function initMap() {
@@ -55,6 +80,7 @@
 
       const geocoder = new google.maps.Geocoder();
 
+      let rawJson;
       let customers = [];
 
       try {
@@ -63,12 +89,22 @@
           throw new Error("Failed to fetch Customers6.json: " + response.status);
         }
 
-        customers = await response.json();
+        rawJson = await response.json();
+        console.log("Raw JSON loaded:", rawJson);
+
+        customers = getCustomerArray(rawJson);
+
         setStatus(`Loaded ${customers.length} customers from JSON.`);
-        console.log("Customers loaded:", customers);
+        console.log("Customer array being used:", customers);
       } catch (error) {
         setStatus("JSON failed to load. Check file path or JSON format.");
         console.error(error);
+        return;
+      }
+
+      if (!customers.length) {
+        setStatus("JSON loaded, but no customer array was found.");
+        console.warn("Loaded JSON did not contain a usable array:", rawJson);
         return;
       }
 
