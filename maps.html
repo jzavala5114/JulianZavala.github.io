@@ -6,25 +6,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
-    body { font-family: Arial; margin: 20px; }
-    #map { height: 80vh; width: 100%; border-radius: 12px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    #map {
+      height: 80vh;
+      width: 100%;
+      border-radius: 12px;
+    }
+
+    #status {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      background: #f3f4f6;
+      border-radius: 10px;
+      font-size: 14px;
+    }
   </style>
 </head>
-
 <body>
   <h2>Customer Tip Map</h2>
+  <div id="status">Loading map…</div>
   <div id="map"></div>
 
   <script>
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
+      console.log(text);
+    }
+
     function loadGoogleMaps() {
       const script = document.createElement("script");
-      script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyDECF7ZPTKhkDOtwzWOWL4nEtqlXxsnLI4&v=weekly";
+      script.src = "https://maps.googleapis.com/maps/api/js?key=YOUR_REAL_API_KEY_HERE&v=weekly";
       script.defer = true;
       script.onload = initMap;
       document.head.appendChild(script);
     }
 
     async function initMap() {
+      setStatus("Map loaded. Creating map...");
+
       const map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 44.091, lng: -87.657 },
         zoom: 12
@@ -32,27 +55,60 @@
 
       const geocoder = new google.maps.Geocoder();
 
-      const customers = await fetch("data/Customers4.json").then(r => r.json());
+      let customers = [];
+
+      try {
+        const response = await fetch("data/Customers4.json");
+        if (!response.ok) {
+          throw new Error("Failed to fetch Customers4.json: " + response.status);
+        }
+
+        customers = await response.json();
+        setStatus(`Loaded ${customers.length} customers from JSON.`);
+        console.log("Customers loaded:", customers);
+      } catch (error) {
+        setStatus("JSON failed to load. Check file path or JSON format.");
+        console.error(error);
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
 
       for (const c of customers) {
-        if (!c.address) continue;
+        if (!c.address || !c.name) {
+          console.warn("Skipping invalid customer record:", c);
+          continue;
+        }
 
         geocoder.geocode({ address: c.address }, (results, status) => {
-          if (status === "OK") {
+          if (status === "OK" && results[0]) {
             const marker = new google.maps.Marker({
-              map,
-              position: results[0].geometry.location
+              map: map,
+              position: results[0].geometry.location,
+              title: c.name
             });
 
             const info = new google.maps.InfoWindow({
-              content: `<b>${c.name}</b><br>$${Number(c.average_tip).toFixed(2)}`
+              content: `
+                <div>
+                  <strong>${c.name}</strong><br>
+                  Average Tip: $${Number(c.average_tip || 0).toFixed(2)}<br>
+                  Address: ${c.address}
+                </div>
+              `
             });
 
             marker.addListener("click", () => {
               info.open(map, marker);
             });
+
+            successCount++;
+            setStatus(`Pins added: ${successCount} | Failed geocodes: ${failCount}`);
           } else {
-            console.log("Geocode failed:", c.address);
+            failCount++;
+            console.warn("Geocode failed for:", c.address, "Status:", status);
+            setStatus(`Pins added: ${successCount} | Failed geocodes: ${failCount}`);
           }
         });
       }
