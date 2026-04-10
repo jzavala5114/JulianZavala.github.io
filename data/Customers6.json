@@ -73,7 +73,7 @@
     },
     {
       "name": "Bradley Steinagel",
-      "address": "1931 S 39th St Apt 243",
+      "address": "1931 S 39th St Apt 243 Manitowoc",
       "average_tip": 5.15,
       "note": "",
       "tips": [
@@ -7195,7 +7195,7 @@
     },
     {
       "name": "Jill Houle",
-      "address": "204 N 8th St Apt 502",
+      "address": "204 N 8th St Apt 502 Manitowoc",
       "average_tip": 7.533333333333334,
       "note": "",
       "tips": [
@@ -7577,7 +7577,7 @@
     },
     {
       "name": "Robin Kobielak",
-      "address": "1500 N 3rd St Apt 107",
+      "address": "1500 N 3rd St Apt 107 Manitowoc",
       "average_tip": 7.276666666666667,
       "note": "",
       "tips": [
@@ -8001,7 +8001,7 @@
     },
     {
       "name": "Jennifer Bricker",
-      "address": "3404 Memorial Dr Apt G1",
+      "address": "3404 Memorial Dr Apt G1 Manitowoc",
       "average_tip": 10,
       "note": "",
       "tips": [
@@ -8803,7 +8803,7 @@
     },
     {
       "name": "Brianna H",
-      "address": "1017 S 11th St Apt B",
+      "address": "1017 S 11th St Apt B Manitowoc",
       "average_tip": 5,
       "note": "",
       "tips": [
@@ -20957,7 +20957,7 @@
     },
     {
       "name": "Rachel Cathcart",
-      "address": "2012 Crystal Spring Rd Two Rivers",
+      "address": "2012 Crystal Spring Rd Two Rivers Wisconsin 54241",
       "average_tip": 20.365,
       "note": "",
       "tips": [
@@ -23027,7 +23027,7 @@
     },
     {
       "name": "Dannie Kalies ",
-      "address": "10415 N County Road J Cato",
+      "address": "10415 N County Road J Cato Wisconsin 54230",
       "average_tip": 12.8,
       "note": "",
       "tips": [
@@ -26117,7 +26117,7 @@
     },
     {
       "name": "Guadalupe Martinez ",
-      "address": "921 Beech St Cleveland",
+      "address": "921 Beech St Cleveland Wisconsin",
       "average_tip": 5.486666666666667,
       "note": "",
       "tips": [
@@ -28351,7 +28351,7 @@
     },
     {
       "name": "Jessica Pyles\n\n",
-      "address": "2020 County Road Vv Two Rivers",
+      "address": "2020 County Highway Vv Two Rivers Wisconsin",
       "average_tip": 24,
       "note": "",
       "tips": [
@@ -29217,7 +29217,7 @@
     },
     {
       "name": "JESSICA SUNDEE\n\n",
-      "address": "909 Birch St Cleveland",
+      "address": "909 Birch St Cleveland Wisconsin 53015",
       "average_tip": 9.08,
       "note": "",
       "tips": [
@@ -31638,26 +31638,6 @@
           "label": "Spark",
           "actual_tip": -1,
           "timestamp": "2025-08-20 14:51:44.899"
-        }
-      ]
-    },
-    {
-      "name": "Antonia Girard",
-      "address": "11316 County Highway K Cato",
-      "average_tip": 11.92,
-      "note": "",
-      "tips": [
-        {
-          "amount": 14.42,
-          "label": "Spark",
-          "actual_tip": -1,
-          "timestamp": "2025-08-21 12:46:13.148"
-        },
-        {
-          "amount": 9.42,
-          "label": "Spark",
-          "actual_tip": -1,
-          "timestamp": "2025-11-20 11:12:13.775"
         }
       ]
     },
@@ -35101,7 +35081,7 @@
     },
     {
       "name": "Lisa Stradel",
-      "address": "202 N Hickory St Whitelaw",
+      "address": "202 N Hickory St Whitelaw Wisconsin 54247",
       "average_tip": 11.215,
       "note": "",
       "tips": [
@@ -36333,7 +36313,7 @@
     },
     {
       "name": "Brittany Dehnert",
-      "address": "4356 N Valley View Cir Newton",
+      "address": "4356 N Valley View Cir Newton Wisconsin",
       "average_tip": 10,
       "note": "",
       "tips": [
