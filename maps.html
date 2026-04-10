@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Customer Map</title>
+  <title>Customer Tip Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
@@ -11,10 +11,8 @@
       margin: 20px;
     }
 
-    #map {
-      height: 80vh;
-      width: 100%;
-      border-radius: 12px;
+    h2 {
+      margin-bottom: 10px;
     }
 
     #status {
@@ -24,11 +22,37 @@
       border-radius: 10px;
       font-size: 14px;
     }
+
+    #map {
+      height: 80vh;
+      width: 100%;
+      border-radius: 12px;
+    }
+
+    .info-window {
+      max-width: 260px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .info-window h3 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+    }
+
+    .info-window .address {
+      margin-bottom: 8px;
+      color: #444;
+    }
+
+    .info-window .customer {
+      margin-bottom: 4px;
+    }
   </style>
 </head>
 <body>
   <h2>Customer Tip Map</h2>
-  <div id="status">Loading map…</div>
+  <div id="status">Loading map...</div>
   <div id="map"></div>
 
   <script>
@@ -40,114 +64,108 @@
     function loadGoogleMaps() {
       const script = document.createElement("script");
       script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyDECF7ZPTKhkDOtwzWOWL4nEtqlXxsnLI4&v=weekly";
+      script.async = true;
       script.defer = true;
       script.onload = initMap;
       document.head.appendChild(script);
     }
 
-    function getCustomerArray(jsonData) {
-      // Case 1: file is already a plain array
-      if (Array.isArray(jsonData)) {
-        return jsonData;
-      }
+    function buildInfoWindowContent(location) {
+      const customerLines = location.customers
+        .map(c => {
+          const avg = Number(c.average_tip || 0).toFixed(2);
+          return `<div class="customer"><strong>${escapeHtml(c.name)}</strong> — $${avg}</div>`;
+        })
+        .join("");
 
-      // Case 2: wrapped object with common property names
-      if (jsonData && typeof jsonData === "object") {
-        if (Array.isArray(jsonData.customers)) return jsonData.customers;
-        if (Array.isArray(jsonData.data)) return jsonData.data;
-        if (Array.isArray(jsonData.customerList)) return jsonData.customerList;
-        if (Array.isArray(jsonData.list)) return jsonData.list;
+      return `
+        <div class="info-window">
+          <h3>${location.customers.length} Customer${location.customers.length === 1 ? "" : "s"}</h3>
+          <div class="address">${escapeHtml(location.address)}</div>
+          ${customerLines}
+        </div>
+      `;
+    }
 
-        // fallback: find the first array property in the object
-        for (const key in jsonData) {
-          if (Array.isArray(jsonData[key])) {
-            console.log("Using array found in property:", key);
-            return jsonData[key];
-          }
-        }
-      }
-
-      return [];
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, function (match) {
+        const escapeMap = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "\"": "&quot;",
+          "'": "&#039;"
+        };
+        return escapeMap[match];
+      });
     }
 
     async function initMap() {
-      setStatus("Map loaded. Creating map...");
+      setStatus("Map loaded. Loading precomputed coordinates...");
 
       const map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 44.091, lng: -87.657 },
         zoom: 12
       });
 
-      const geocoder = new google.maps.Geocoder();
-
-      let rawJson;
-      let customers = [];
+      let locations = [];
 
       try {
-        const response = await fetch("data/Customers6.json");
+        const response = await fetch("data/Customers6_geocoded.json");
         if (!response.ok) {
-          throw new Error("Failed to fetch Customers6.json: " + response.status);
+          throw new Error("Failed to fetch Customers6_geocoded.json: " + response.status);
         }
 
-        rawJson = await response.json();
-        console.log("Raw JSON loaded:", rawJson);
-
-        customers = getCustomerArray(rawJson);
-
-        setStatus(`Loaded ${customers.length} customers from JSON.`);
-        console.log("Customer array being used:", customers);
+        locations = await response.json();
+        setStatus(`Loaded ${locations.length} geocoded address groups.`);
+        console.log("Geocoded locations:", locations);
       } catch (error) {
-        setStatus("JSON failed to load. Check file path or JSON format.");
+        setStatus("Failed to load geocoded JSON.");
         console.error(error);
         return;
       }
 
-      if (!customers.length) {
-        setStatus("JSON loaded, but no customer array was found.");
-        console.warn("Loaded JSON did not contain a usable array:", rawJson);
-        return;
-      }
+      const bounds = new google.maps.LatLngBounds();
+      let markerCount = 0;
 
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const c of customers) {
-        if (!c.address || !c.name) {
-          console.warn("Skipping invalid customer record:", c);
+      for (const location of locations) {
+        if (
+          typeof location.lat !== "number" ||
+          typeof location.lng !== "number"
+        ) {
+          console.warn("Skipping invalid location:", location);
           continue;
         }
 
-        geocoder.geocode({ address: c.address }, (results, status) => {
-          if (status === "OK" && results[0]) {
-            const marker = new google.maps.Marker({
-              map: map,
-              position: results[0].geometry.location,
-              title: c.name
-            });
+        const marker = new google.maps.Marker({
+          map: map,
+          position: { lat: location.lat, lng: location.lng },
+          title: location.address
+        });
 
-            const info = new google.maps.InfoWindow({
-              content: `
-                <div>
-                  <strong>${c.name}</strong><br>
-                  Average Tip: $${Number(c.average_tip || 0).toFixed(2)}<br>
-                  Address: ${c.address}
-                </div>
-              `
-            });
+        const infoWindow = new google.maps.InfoWindow({
+          content: buildInfoWindowContent(location)
+        });
 
-            marker.addListener("click", () => {
-              info.open(map, marker);
-            });
+        marker.addListener("click", () => {
+          infoWindow.open(map, marker);
+        });
 
-            successCount++;
-            setStatus(`Pins added: ${successCount} | Failed geocodes: ${failCount}`);
-          } else {
-            failCount++;
-            console.warn("Geocode failed for:", c.address, "Status:", status);
-            setStatus(`Pins added: ${successCount} | Failed geocodes: ${failCount}`);
+        bounds.extend(marker.getPosition());
+        markerCount++;
+      }
+
+      if (markerCount > 0) {
+        map.fitBounds(bounds);
+
+        google.maps.event.addListenerOnce(map, "bounds_changed", function () {
+          if (map.getZoom() > 15) {
+            map.setZoom(15);
           }
         });
       }
+
+      setStatus(`Loaded ${markerCount} map pins from precomputed coordinates.`);
     }
 
     loadGoogleMaps();
