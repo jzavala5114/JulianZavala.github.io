@@ -267,16 +267,9 @@
         const marker = new google.maps.Marker({
           map: map,
           position: { lat: location.lat, lng: location.lng },
-          title: location.address,
-          label: {
-            text: createMarkerLabel(customerCount),
-            color: "white",
-            fontSize: "12px",
-            fontWeight: "bold"
-          },
-          icon: createMarkerIcon(customerCount)
+          title: location.address
         });
-
+  
         const infoWindow = new google.maps.InfoWindow({
           content: buildInfoWindowContent(location)
         });
