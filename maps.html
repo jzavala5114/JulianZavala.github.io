@@ -30,7 +30,7 @@
     }
 
     .info-window {
-      max-width: 260px;
+      max-width: 280px;
       font-size: 14px;
       line-height: 1.4;
     }
@@ -46,7 +46,13 @@
     }
 
     .info-window .customer {
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+    }
+
+    .info-window .customer-address {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
     }
   </style>
 </head>
@@ -56,6 +62,8 @@
   <div id="map"></div>
 
   <script>
+    let openInfoWindow = null;
+
     function setStatus(text) {
       document.getElementById("status").textContent = text;
       console.log(text);
@@ -70,11 +78,75 @@
       document.head.appendChild(script);
     }
 
+    function escapeHtml(text) {
+      return String(text ?? "").replace(/[&<>"']/g, function(match) {
+        const escapeMap = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "\"": "&quot;",
+          "'": "&#039;"
+        };
+        return escapeMap[match];
+      });
+    }
+
+    function normalizeBuildingAddress(address) {
+      if (!address) return "";
+
+      let a = address.trim().toLowerCase();
+
+      a = a.replace(/[.,#]/g, " ");
+
+      a = a.replace(/\bsouth\b/g, "s");
+      a = a.replace(/\bnorth\b/g, "n");
+      a = a.replace(/\beast\b/g, "e");
+      a = a.replace(/\bwest\b/g, "w");
+
+      a = a.replace(/\bstreet\b/g, "st");
+      a = a.replace(/\bavenue\b/g, "ave");
+      a = a.replace(/\bboulevard\b/g, "blvd");
+      a = a.replace(/\bdrive\b/g, "dr");
+      a = a.replace(/\broad\b/g, "rd");
+      a = a.replace(/\bplace\b/g, "pl");
+      a = a.replace(/\bcourt\b/g, "ct");
+      a = a.replace(/\bcircle\b/g, "cir");
+      a = a.replace(/\blane\b/g, "ln");
+      a = a.replace(/\bterrace\b/g, "ter");
+      a = a.replace(/\bhighway\b/g, "hwy");
+
+      a = a.replace(/\b(apartment|apt|unit|ste|suite|room|rm|lot)\s*[a-z0-9-]+\b/g, "");
+
+      a = a.replace(/\s+/g, " ").trim();
+
+      return a;
+    }
+
+    function toTitleCaseAddress(address) {
+      return address
+        .split(" ")
+        .filter(Boolean)
+        .map(word => {
+          if (word.length === 1) return word.toUpperCase();
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(" ");
+    }
+
     function buildInfoWindowContent(location) {
       const customerLines = location.customers
         .map(c => {
           const avg = Number(c.average_tip || 0).toFixed(2);
-          return `<div class="customer"><strong>${escapeHtml(c.name)}</strong> — $${avg}</div>`;
+          const fullAddress = c.address ? `
+            <div class="customer-address">${escapeHtml(c.address)}</div>
+          ` : "";
+
+          return `
+            <div class="customer">
+              <strong>${escapeHtml(c.name)}</strong> — $${avg}
+              ${fullAddress}
+            </div>
+          `;
         })
         .join("");
 
@@ -87,17 +159,70 @@
       `;
     }
 
-    function escapeHtml(text) {
-      return String(text).replace(/[&<>"']/g, function (match) {
-        const escapeMap = {
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          "\"": "&quot;",
-          "'": "&#039;"
-        };
-        return escapeMap[match];
-      });
+    function createMarkerIcon(count) {
+      const scale = count >= 10 ? 22 : count >= 5 ? 20 : 18;
+
+      return {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: "#d93025",
+        fillOpacity: 1,
+        strokeColor: "#b3261e",
+        strokeWeight: 1.5,
+        scale
+      };
+    }
+
+    function createMarkerLabel(count) {
+      if (count < 100) return String(count);
+      return "99+";
+    }
+
+    function regroupLocationsByBuilding(locations) {
+      const grouped = new Map();
+
+      for (const location of locations) {
+        if (typeof location.lat !== "number" || typeof location.lng !== "number") {
+          console.warn("Skipping invalid location:", location);
+          continue;
+        }
+
+        const originalAddress = location.address || "";
+        const buildingKey = normalizeBuildingAddress(originalAddress);
+
+        if (!buildingKey) {
+          console.warn("Skipping location with empty normalized address:", location);
+          continue;
+        }
+
+        if (!grouped.has(buildingKey)) {
+          grouped.set(buildingKey, {
+            address: toTitleCaseAddress(buildingKey),
+            customers: [],
+            latSum: 0,
+            lngSum: 0,
+            pointCount: 0
+          });
+        }
+
+        const group = grouped.get(buildingKey);
+
+        if (Array.isArray(location.customers)) {
+          group.customers.push(...location.customers);
+        } else {
+          console.warn("Location missing customers array:", location);
+        }
+
+        group.latSum += location.lat;
+        group.lngSum += location.lng;
+        group.pointCount += 1;
+      }
+
+      return Array.from(grouped.values()).map(group => ({
+        address: group.address,
+        customers: group.customers,
+        lat: group.latSum / group.pointCount,
+        lng: group.lngSum / group.pointCount
+      }));
     }
 
     async function initMap() {
@@ -118,29 +243,38 @@
 
         locations = await response.json();
         setStatus(`Loaded ${locations.length} geocoded address groups.`);
-        console.log("Geocoded locations:", locations);
+        console.log("Original geocoded locations:", locations);
       } catch (error) {
         setStatus("Failed to load geocoded JSON.");
         console.error(error);
         return;
       }
 
+      const regroupedLocations = regroupLocationsByBuilding(locations);
+      console.log("Regrouped locations:", regroupedLocations);
+
       const bounds = new google.maps.LatLngBounds();
       let markerCount = 0;
 
-      for (const location of locations) {
-        if (
-          typeof location.lat !== "number" ||
-          typeof location.lng !== "number"
-        ) {
-          console.warn("Skipping invalid location:", location);
+      for (const location of regroupedLocations) {
+        if (typeof location.lat !== "number" || typeof location.lng !== "number") {
+          console.warn("Skipping invalid regrouped location:", location);
           continue;
         }
+
+        const customerCount = Array.isArray(location.customers) ? location.customers.length : 0;
 
         const marker = new google.maps.Marker({
           map: map,
           position: { lat: location.lat, lng: location.lng },
-          title: location.address
+          title: location.address,
+          label: {
+            text: createMarkerLabel(customerCount),
+            color: "white",
+            fontSize: "12px",
+            fontWeight: "bold"
+          },
+          icon: createMarkerIcon(customerCount)
         });
 
         const infoWindow = new google.maps.InfoWindow({
@@ -148,7 +282,12 @@
         });
 
         marker.addListener("click", () => {
+          if (openInfoWindow) {
+            openInfoWindow.close();
+          }
+
           infoWindow.open(map, marker);
+          openInfoWindow = infoWindow;
         });
 
         bounds.extend(marker.getPosition());
@@ -158,14 +297,14 @@
       if (markerCount > 0) {
         map.fitBounds(bounds);
 
-        google.maps.event.addListenerOnce(map, "bounds_changed", function () {
+        google.maps.event.addListenerOnce(map, "bounds_changed", function() {
           if (map.getZoom() > 15) {
             map.setZoom(15);
           }
         });
       }
 
-      setStatus(`Loaded ${markerCount} map pins from precomputed coordinates.`);
+      setStatus(`Loaded ${markerCount} map pins from precomputed coordinates after regrouping apartment/unit addresses.`);
     }
 
     loadGoogleMaps();
