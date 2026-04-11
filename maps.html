@@ -63,6 +63,12 @@
 
   <script>
     let openInfoWindow = null;
+    let currentMarkers = [];
+    let currentMarkerMode = null;
+    let mapInstance = null;
+    let regroupedLocationsCache = [];
+
+    const DETAIL_ZOOM_THRESHOLD = 16;
 
     function setStatus(text) {
       document.getElementById("status").textContent = text;
@@ -115,7 +121,12 @@
       a = a.replace(/\bterrace\b/g, "ter");
       a = a.replace(/\bhighway\b/g, "hwy");
 
+      // Remove apartment/unit-like segments
       a = a.replace(/\b(apartment|apt|unit|ste|suite|room|rm|lot)\s*[a-z0-9-]+\b/g, "");
+
+      // Remove lonely single-letter unit after street type, like:
+      // "710 saint clair st a manitowoc" -> "710 saint clair st manitowoc"
+      a = a.replace(/\b(st|ave|blvd|dr|rd|pl|ct|cir|ln|ter|hwy)\s+[a-z]\b/g, "$1");
 
       a = a.replace(/\s+/g, " ").trim();
 
@@ -137,9 +148,9 @@
       const customerLines = location.customers
         .map(c => {
           const avg = Number(c.average_tip || 0).toFixed(2);
-          const fullAddress = c.address ? `
-            <div class="customer-address">${escapeHtml(c.address)}</div>
-          ` : "";
+          const fullAddress = c.address
+            ? `<div class="customer-address">${escapeHtml(c.address)}</div>`
+            : "";
 
           return `
             <div class="customer">
@@ -159,7 +170,11 @@
       `;
     }
 
-    function createMarkerIcon(count) {
+    function createMarkerLabel(count) {
+      return count < 100 ? String(count) : "99+";
+    }
+
+    function createDetailedMarkerIcon(count) {
       const scale = count >= 10 ? 22 : count >= 5 ? 20 : 18;
 
       return {
@@ -168,13 +183,8 @@
         fillOpacity: 1,
         strokeColor: "#b3261e",
         strokeWeight: 1.5,
-        scale
+        scale: scale
       };
-    }
-
-    function createMarkerLabel(count) {
-      if (count < 100) return String(count);
-      return "99+";
     }
 
     function regroupLocationsByBuilding(locations) {
@@ -217,18 +227,115 @@
         group.pointCount += 1;
       }
 
-      return Array.from(grouped.values()).map(group => ({
-        address: group.address,
-        customers: group.customers,
-        lat: group.latSum / group.pointCount,
-        lng: group.lngSum / group.pointCount
-      }));
+      return Array.from(grouped.values()).map(group => {
+        group.customers.sort((a, b) => {
+          const aAddress = String(a.address || "").toLowerCase();
+          const bAddress = String(b.address || "").toLowerCase();
+          return aAddress.localeCompare(bAddress);
+        });
+
+        return {
+          address: group.address,
+          customers: group.customers,
+          lat: group.latSum / group.pointCount,
+          lng: group.lngSum / group.pointCount
+        };
+      });
+    }
+
+    function clearMarkers() {
+      for (const marker of currentMarkers) {
+        marker.setMap(null);
+      }
+      currentMarkers = [];
+    }
+
+    function attachInfoWindow(marker, location) {
+      marker.addListener("click", () => {
+        if (openInfoWindow) {
+          openInfoWindow.close();
+        }
+
+        openInfoWindow = new google.maps.InfoWindow({
+          content: buildInfoWindowContent(location)
+        });
+
+        openInfoWindow.open(mapInstance, marker);
+      });
+    }
+
+    function createSimpleMarker(location) {
+      const marker = new google.maps.Marker({
+        map: mapInstance,
+        position: { lat: location.lat, lng: location.lng },
+        title: `${location.address} (${location.customers.length} customer${location.customers.length === 1 ? "" : "s"})`
+      });
+
+      attachInfoWindow(marker, location);
+      return marker;
+    }
+
+    function createDetailedMarker(location) {
+      const count = Array.isArray(location.customers) ? location.customers.length : 0;
+
+      const marker = new google.maps.Marker({
+        map: mapInstance,
+        position: { lat: location.lat, lng: location.lng },
+        title: location.address,
+        label: {
+          text: createMarkerLabel(count),
+          color: "white",
+          fontSize: "12px",
+          fontWeight: "bold"
+        },
+        icon: createDetailedMarkerIcon(count)
+      });
+
+      attachInfoWindow(marker, location);
+      return marker;
+    }
+
+    function renderMarkersForCurrentZoom() {
+      if (!mapInstance || !regroupedLocationsCache.length) return;
+
+      const zoom = mapInstance.getZoom();
+      const newMode = zoom >= DETAIL_ZOOM_THRESHOLD ? "detailed" : "simple";
+
+      if (newMode === currentMarkerMode) {
+        return;
+      }
+
+      currentMarkerMode = newMode;
+      clearMarkers();
+
+      console.time("render markers");
+
+      for (const location of regroupedLocationsCache) {
+        if (typeof location.lat !== "number" || typeof location.lng !== "number") {
+          continue;
+        }
+
+        const marker =
+          newMode === "detailed"
+            ? createDetailedMarker(location)
+            : createSimpleMarker(location);
+
+        currentMarkers.push(marker);
+      }
+
+      console.timeEnd("render markers");
+
+      setStatus(
+        `Loaded ${currentMarkers.length} map pins. Mode: ${newMode}. Zoom: ${zoom}.`
+      );
     }
 
     async function initMap() {
+      console.time("total initMap");
+
       setStatus("Map loaded. Loading precomputed coordinates...");
 
-      const map = new google.maps.Map(document.getElementById("map"), {
+      mapInstance = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 44.091, lng: -87.657 },
         zoom: 12
       });
@@ -236,12 +343,15 @@
       let locations = [];
 
       try {
+        console.time("fetch json");
         const response = await fetch("data/Customers6_geocoded.json");
         if (!response.ok) {
           throw new Error("Failed to fetch Customers6_geocoded.json: " + response.status);
         }
 
         locations = await response.json();
+        console.timeEnd("fetch json");
+
         setStatus(`Loaded ${locations.length} geocoded address groups.`);
         console.log("Original geocoded locations:", locations);
       } catch (error) {
@@ -250,54 +360,40 @@
         return;
       }
 
-      const regroupedLocations = regroupLocationsByBuilding(locations);
-      console.log("Regrouped locations:", regroupedLocations);
+      console.time("regroup locations");
+      regroupedLocationsCache = regroupLocationsByBuilding(locations);
+      console.timeEnd("regroup locations");
+
+      console.log("Regrouped locations:", regroupedLocationsCache);
+      console.log("Original location count:", locations.length);
+      console.log("Regrouped marker count:", regroupedLocationsCache.length);
 
       const bounds = new google.maps.LatLngBounds();
-      let markerCount = 0;
-
-      for (const location of regroupedLocations) {
-        if (typeof location.lat !== "number" || typeof location.lng !== "number") {
-          console.warn("Skipping invalid regrouped location:", location);
-          continue;
+      for (const location of regroupedLocationsCache) {
+        if (typeof location.lat === "number" && typeof location.lng === "number") {
+          bounds.extend({ lat: location.lat, lng: location.lng });
         }
-
-        const customerCount = Array.isArray(location.customers) ? location.customers.length : 0;
-
-        const marker = new google.maps.Marker({
-          map: map,
-          position: { lat: location.lat, lng: location.lng },
-          title: location.address
-        });
-  
-        const infoWindow = new google.maps.InfoWindow({
-          content: buildInfoWindowContent(location)
-        });
-
-        marker.addListener("click", () => {
-          if (openInfoWindow) {
-            openInfoWindow.close();
-          }
-
-          infoWindow.open(map, marker);
-          openInfoWindow = infoWindow;
-        });
-
-        bounds.extend(marker.getPosition());
-        markerCount++;
       }
 
-      if (markerCount > 0) {
-        map.fitBounds(bounds);
+      if (!bounds.isEmpty()) {
+        console.time("fit bounds");
+        mapInstance.fitBounds(bounds);
 
-        google.maps.event.addListenerOnce(map, "bounds_changed", function() {
-          if (map.getZoom() > 15) {
-            map.setZoom(15);
+        google.maps.event.addListenerOnce(mapInstance, "bounds_changed", function() {
+          if (mapInstance.getZoom() > 15) {
+            mapInstance.setZoom(15);
           }
         });
+        console.timeEnd("fit bounds");
       }
 
-      setStatus(`Loaded ${markerCount} map pins from precomputed coordinates after regrouping apartment/unit addresses.`);
+      renderMarkersForCurrentZoom();
+
+      mapInstance.addListener("zoom_changed", () => {
+        renderMarkersForCurrentZoom();
+      });
+
+      console.timeEnd("total initMap");
     }
 
     loadGoogleMaps();
