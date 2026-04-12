@@ -62,6 +62,7 @@
   <div id="map"></div>
 
   <script>
+    const detailedIconCache = new Map();
     let openInfoWindow = null;
     let currentMarkers = [];
     let currentMarkerMode = null;
@@ -75,6 +76,38 @@
       console.log(text);
     }
 
+    function getDetailedMarkerIcon(count) {
+      const displayText = count < 100 ? String(count) : "99+";
+      const size = count >= 10 ? 44 : count >= 5 ? 40 : 36;
+
+      const cacheKey = `${displayText}-${size}`;
+      if (detailedIconCache.has(cacheKey)) {
+        return detailedIconCache.get(cacheKey);
+      }
+
+      const radius = size / 2;
+      const fontSize = count >= 10 ? 14 : 13;
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          <circle cx="${radius}" cy="${radius}" r="${radius - 2}" fill="#d93025" stroke="#b3261e" stroke-width="2"/>
+          <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+                font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="white">
+            ${displayText}
+          </text>
+        </svg>
+      `.trim();
+
+      const icon = {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+        scaledSize: new google.maps.Size(size, size),
+        anchor: new google.maps.Point(radius, radius)
+    };
+
+  detailedIconCache.set(cacheKey, icon);
+  return icon;
+}
+    
     function loadGoogleMaps() {
       const script = document.createElement("script");
       script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyDECF7ZPTKhkDOtwzWOWL4nEtqlXxsnLI4&v=weekly";
@@ -170,23 +203,6 @@
       `;
     }
 
-    function createMarkerLabel(count) {
-      return count < 100 ? String(count) : "99+";
-    }
-
-    function createDetailedMarkerIcon(count) {
-      const scale = count >= 10 ? 22 : count >= 5 ? 20 : 18;
-
-      return {
-        path: google.maps.SymbolPath.CIRCLE,
-        fillColor: "#d93025",
-        fillOpacity: 1,
-        strokeColor: "#b3261e",
-        strokeWeight: 1.5,
-        scale: scale
-      };
-    }
-
     function regroupLocationsByBuilding(locations) {
       const grouped = new Map();
 
@@ -279,21 +295,15 @@
       const count = Array.isArray(location.customers) ? location.customers.length : 0;
 
       const marker = new google.maps.Marker({
-        map: mapInstance,
-        position: { lat: location.lat, lng: location.lng },
-        title: location.address,
-        label: {
-          text: createMarkerLabel(count),
-          color: "white",
-          fontSize: "12px",
-          fontWeight: "bold"
-        },
-        icon: createDetailedMarkerIcon(count)
-      });
+          map: mapInstance,
+          position: { lat: location.lat, lng: location.lng },
+          title: `${location.address} (${count} customer${count === 1 ? "" : "s"})`,
+          icon: getDetailedMarkerIcon(count)
+         });
 
-      attachInfoWindow(marker, location);
-      return marker;
-    }
+        attachInfoWindow(marker, location);
+        return marker;
+      }
 
     function renderMarkersForCurrentZoom() {
       if (!mapInstance || !regroupedLocationsCache.length) return;
